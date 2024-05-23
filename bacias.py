@@ -17,7 +17,7 @@ import cartopy as cart
 
 
 
-rootgrp = Dataset('/home/owner/Documents/copernicus/download2022_2023.nc','r')
+rootgrp = Dataset('/home/owner/Documents/copernicus/download2014_2015_sc.nc','r')
 
 dims = rootgrp.dimensions
 
@@ -172,6 +172,39 @@ plt.plot([-48.56,-44.62,-44.57,-44.26,-42.72,-42.43,-40.22,-42.001],[-27.85,-27.
 
 plt.plot([-40.22,-38.807,-37.445,-37.109,-40.319],[-25.91,-24.672,-22.638,-22.033,-20.453],markersize=3,transform = ccrs.PlateCarree(),color='red') #Bacia de campos
 
+wndspeed = np.sqrt(vwnd**2   +  uwnd**2)
+wndmean = np.nanmean(wndspeed,axis=(0))
+ssrdmean = np.nanmean(ssrd,axis=(0))/3600
+
+
+# #Plot velocidade media do vento
+# plt.contourf(olon, olat ,wndmean,np.arange(0,20.5,0.5),transform = ccrs.PlateCarree(),color='k',cmap='CMRmap')
+# cbar = plt.colorbar()
+# cbar.set_label(r'Velocidade média do vento a 100 m (m $\rms^{-1}$)',size=20)
+# #cbar.ax.tick_params(length=5, width=2,labelsize=16)
+
+#Plot radiacao solar
+plt.contourf(olon, olat ,ssrdmean,np.arange(0,305,5),transform = ccrs.PlateCarree(),color='k',cmap='CMRmap')
+cbar = plt.colorbar()
+cbar.set_label(r'Velocidade média do vento a 100 m (m $\rms^{-1}$)',size=20)
+#cbar.ax.tick_params(length=5, width=2,labelsize=16)
+
+# q = ax.quiver(olon, olat, uwnd[0], vwnd[0], transform=ccrs.PlateCarree())
+# ax.quiverkey(q, 1.03, 1.03, 20, label='20m/s')
+
+#ax.streamplot(olon, olat, uwnd[0], vwnd[0], transform=ccrs.PlateCarree(),linewidth=1, density=2, color='crimson')
+
+plt.tick_params('both', length=15, width=2, which='major')
+
+
+plt.subplots_adjust(bottom=0.1, top=0.9, hspace=0.15, right=0.99, left=0.0)
+
+
+nameoffigure = "bacias_solar1" #+ "0"
+string_in_string = "{}".format(nameoffigure)
+plt.savefig("/home/owner/Documents/copernicus/figures/"+string_in_string,dpi=100)
+plt.close()
+
 plt.show() 
 
 
@@ -221,6 +254,69 @@ plt.plot([-37.267,-35.559,-33.354,-32.422,-35.342],[-0.590,-1.801,-2.453,-3.665,
 
 
 plt.show() 
+
+nameoffigure = "bacias2" #+ "0"
+string_in_string = "{}".format(nameoffigure)
+plt.savefig("/home/owner/Documents/copernicus/figures/"+string_in_string,dpi=300)
+plt.close()
+
+
+#%%
+import pickle
+import mpmath
+from mpmath import *
+from mpmath import mp
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+import numpy as np
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+
+
+
+
+# with open('/home/owner/Documents/copernicus/variables/wndmean.pickle', 'wb') as handle:
+#     pickle.dump(wndmean, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+    
+
+
+with open('/home/owner/Documents/copernicus/variables/ssrdmean.pickle', 'wb') as handle:
+    pickle.dump(ssrdmean, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+    
+    
+
+#%%    
+####################################################################################################################################
+
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_sc_2014_2015.pickle', 'rb') as handle:
+    ssrd1 = pickle.load(handle)
+      
+    
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_sc_2016_2017.pickle', 'rb') as handle:
+    ssrd2 = pickle.load(handle)
+    
+    
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_sc_2018_2019.pickle', 'rb') as handle:
+    ssrd3 = pickle.load(handle)
+    
+
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_sc_2020_2021.pickle', 'rb') as handle:
+    ssrd4 = pickle.load(handle)
+    
+
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_sc_2022_2023.pickle', 'rb') as handle:
+    ssrd5 = pickle.load(handle)
+    
+
+
+
+
+
+
+
 
 
 
