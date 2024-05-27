@@ -18,7 +18,7 @@ import cmocean
 
 
 
-rootgrp = Dataset('/home/owner/Documents/copernicus/download2022_2023_sc.nc','r')
+rootgrp = Dataset('/home/owner/Documents/copernicus/download2022_2023_mn.nc','r')
 
 dims = rootgrp.dimensions
 
@@ -167,6 +167,9 @@ grl.xformatter = LONGITUDE_FORMATTER
 grl.yformatter = LATITUDE_FORMATTER
 
 
+plt.plot([-42.25],[-24.5],markersize=20,marker="*",label="Bloco Búzios",transform = ccrs.PlateCarree()) #Buzios 
+
+plt.plot([-40],[-22],markersize=20,marker="*",color="red",label="Bloco Albacora",transform = ccrs.PlateCarree()) #Albacora
 
 plt.plot([-48.56,-44.62,-44.57,-44.26,-42.72,-42.43,-40.22,-42.001],[-27.85,-27.85,-27.34,-27.19,-26.43,-26.33,-25.91,-23.006],markersize=3,transform = ccrs.PlateCarree(),color='red') #Bacia de santos 
 
@@ -187,19 +190,23 @@ ssrdmean = np.nanmean(ssrd,axis=(0))/3600
 # #cbar.ax.tick_params(length=5, width=2,labelsize=16)
 
 
-# #Plot power density
-# cmap = cmocean.cm.speed
-# plt.contourf(olon, olat ,pdmean_f,np.arange(0,850,50),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
-# cbar = plt.colorbar()  #pad=0.1
-# cbar.set_label(r'Wind power density (W $\rmm^{-2}$)',size=20)
-# #cbar.ax.tick_params(length=5, width=2,labelsize=16)
-
-#Plot radiacao solar
-cmap = cmocean.cm.solar
-plt.contourf(olon, olat ,ssrdmean_f,np.arange(150,255,5),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
+#Plot power density
+cmap = cmocean.cm.speed
+plt.contourf(olon, olat ,pdmean_f,np.arange(0,850,50),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
 cbar = plt.colorbar()  #pad=0.1
-cbar.set_label(r'Radiação de onda curta (W $\rmm^{-2}$)',size=20)
+cbar.set_label(r'Densidade de potência do vento a 100 m (W $\rmm^{-2}$)',size=20)
+print(pdmean_f[30,39],"Buzios")
+print(pdmean_f[20,48],"Albacore")
 #cbar.ax.tick_params(length=5, width=2,labelsize=16)
+
+# #Plot radiacao solar
+# cmap = cmocean.cm.solar
+# plt.contourf(olon, olat ,ssrdmean_f,np.arange(150,275,5),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
+# cbar = plt.colorbar()  #pad=0.1
+# cbar.set_label(r'Radiação de onda curta (W $\rmm^{-2}$)',size=20)
+# print(ssrdmean_f[30,39],"Buzios")
+# print(ssrdmean_f[20,48],"Albacore")
+# #cbar.ax.tick_params(length=5, width=2,labelsize=16)
 
 # q = ax.quiver(olon, olat, uwnd[0], vwnd[0], transform=ccrs.PlateCarree())
 # ax.quiverkey(q, 1.03, 1.03, 20, label='20m/s')
@@ -210,7 +217,7 @@ plt.tick_params('both', length=15, width=2, which='major')
 
 
 plt.subplots_adjust(bottom=0.1, top=0.9, hspace=0.5, right=0.99, left=0.1)
-
+plt.legend(loc='lower right')
 
 nameoffigure = "bacias_solar1" #+ "0"
 string_in_string = "{}".format(nameoffigure)
@@ -231,12 +238,12 @@ ax = plt.axes(projection=ccrs.PlateCarree())
 ax.coastlines()
 ax.set_extent([-55, -30, 10, -10], crs=ccrs.PlateCarree())  #Bacia de santos
 ax.coastlines()
-#ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
-#ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
+ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
+ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-52,-30,2) # define longitude ticks  #Bacia de Campos
+lontick = np.arange(-54,-30,2) # define longitude ticks  #Bacia de Campos
 lattick = np.arange(-10,10,2) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
@@ -253,6 +260,11 @@ grl.yformatter = LATITUDE_FORMATTER
 
 
 
+plt.plot([-50],[5.5],markersize=20,marker="*",label="Bloco FZA-M",transform = ccrs.PlateCarree()) #FZA-M
+
+plt.plot([-37],[-4],markersize=20,marker="*",color="red",label="Pitu Oeste",transform = ccrs.PlateCarree()) #Pitu Oeste
+
+
 plt.plot([-51.5182,-49.409,-48.260,-47.795,-46.801,-45.559,-47.919],[4.442,7.018,5.745,4.255,2.764,2.391,-0.621],markersize=3,transform = ccrs.PlateCarree(),color='red') #Bacia de santos 
 
 plt.plot([-45.559,-44.720,-43.602,-42.547,-44.472],[2.391,2.112,1.801,1.056,-2.236],markersize=3,transform = ccrs.PlateCarree(),color='red') #Bacia de santos 
@@ -265,11 +277,11 @@ plt.plot([-37.267,-35.559,-33.354,-32.422,-35.342],[-0.590,-1.801,-2.453,-3.665,
 
 
 
-wndspeed = np.sqrt(vwnd**2   +  uwnd**2)
-pd = 0.5*1.185*wndspeed**3
-pdmean = np.nanmean(pd,axis=(0))
-#wndmean = np.nanmean(wndspeed,axis=(0))
-ssrdmean = np.nanmean(ssrd,axis=(0))/3600
+# wndspeed = np.sqrt(vwnd**2   +  uwnd**2)
+# pd = 0.5*1.185*wndspeed**3
+# pdmean = np.nanmean(pd,axis=(0))
+# #wndmean = np.nanmean(wndspeed,axis=(0))
+# ssrdmean = np.nanmean(ssrd,axis=(0))/3600
 
 
 # #Plot velocidade media do vento
@@ -283,14 +295,18 @@ ssrdmean = np.nanmean(ssrd,axis=(0))/3600
 # cmap = cmocean.cm.speed
 # plt.contourf(olon, olat ,pdmean_f,np.arange(0,850,50),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
 # cbar = plt.colorbar()  #pad=0.1
-# cbar.set_label(r'Wind power density (W $\rmm^{-2}$)',size=20)
+# cbar.set_label(r'Densidade de potência do vento a 100 m (W $\rmm^{-2}$)',size=20)
+# print(pdmean_f[22,24],"Bloco FZA-M")
+# print(pdmean_f[60,76],"Pitu Oeste")
 # #cbar.ax.tick_params(length=5, width=2,labelsize=16)
 
 #Plot radiacao solar
 cmap = cmocean.cm.solar
-plt.contourf(olon, olat ,ssrdmean_f,np.arange(150,255,5),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
+plt.contourf(olon, olat ,ssrdmean_f,np.arange(150,275,5),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
 cbar = plt.colorbar()  #pad=0.1
 cbar.set_label(r'Radiação de onda curta (W $\rmm^{-2}$)',size=20)
+print(ssrdmean_f[22,24],"Bloco FZA-M")
+print(ssrdmean_f[60,76],"Pitu Oeste")
 #cbar.ax.tick_params(length=5, width=2,labelsize=16)
 
 # q = ax.quiver(olon, olat, uwnd[0], vwnd[0], transform=ccrs.PlateCarree())
@@ -302,7 +318,7 @@ plt.tick_params('both', length=15, width=2, which='major')
 
 
 plt.subplots_adjust(bottom=0.1, top=0.9, hspace=0.5, right=0.99, left=0.1)
-
+plt.legend(loc='upper right')
 
 nameoffigure = "bacias_solar1" #+ "0"
 string_in_string = "{}".format(nameoffigure)
@@ -393,6 +409,68 @@ with open('/home/owner/Documents/copernicus/variables/pdmean_sc_2020_2021.pickle
     
 
 with open('/home/owner/Documents/copernicus/variables/pdmean_sc_2022_2023.pickle', 'rb') as handle:
+    pd5 = pickle.load(handle)
+    
+
+pdmean_f = (pd1 + pd2 + pd3 + pd4 + pd5)/5
+
+
+
+
+#%%    
+import pickle
+import mpmath
+from mpmath import *
+from mpmath import mp
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+import numpy as np
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+
+
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_mn_2014_2015.pickle', 'rb') as handle:
+    ssrd1 = pickle.load(handle)
+      
+    
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_mn_2016_2017.pickle', 'rb') as handle:
+    ssrd2 = pickle.load(handle)
+    
+    
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_mn_2018_2019.pickle', 'rb') as handle:
+    ssrd3 = pickle.load(handle)
+    
+
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_mn_2020_2021.pickle', 'rb') as handle:
+    ssrd4 = pickle.load(handle)
+    
+
+with open('/home/owner/Documents/copernicus/variables/ssrdmean_mn_2022_2023.pickle', 'rb') as handle:
+    ssrd5 = pickle.load(handle)
+    
+
+ssrdmean_f = (ssrd1 + ssrd2 + ssrd3 + ssrd4 + ssrd5)/5
+
+
+####################################################################################################################################
+
+
+with open('/home/owner/Documents/copernicus/variables/pdmean_mn_2014_2015.pickle', 'rb') as handle:
+    pd1 = pickle.load(handle)
+      
+    
+with open('/home/owner/Documents/copernicus/variables/pdmean_mn_2016_2017.pickle', 'rb') as handle:
+    pd2 = pickle.load(handle)
+    
+    
+with open('/home/owner/Documents/copernicus/variables/pdmean_mn_2018_2019.pickle', 'rb') as handle:
+    pd3 = pickle.load(handle)
+    
+
+with open('/home/owner/Documents/copernicus/variables/pdmean_mn_2020_2021.pickle', 'rb') as handle:
+    pd4 = pickle.load(handle)
+    
+
+with open('/home/owner/Documents/copernicus/variables/pdmean_mn_2022_2023.pickle', 'rb') as handle:
     pd5 = pickle.load(handle)
     
 
