@@ -85,8 +85,8 @@ ax = plt.axes(projection=ccrs.PlateCarree())
 ax.coastlines()
 ax.set_extent([-52, -37, -18, -30], crs=ccrs.PlateCarree())  #Bacia de santos
 ax.coastlines()
-# ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
-# ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
+ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
+ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
@@ -131,21 +131,31 @@ for k in range(0,theta1000m.shape[0]):
         
    
 
-# Pg = 30*1025*4000*3*1025*(45/30)*(abs(theta-theta1000m)**2) /  (16*(1+(45/30))*theta)  / 10**6  #in MW       
+Pg = 30*1025*4000*3*0.85*(45/30)*(abs(theta-theta1000m)**2) /  (16*(1+(45/30))*(theta+273.15))  / 10**6  #in MW   
+Pgmean = np.nanmean(Pg,axis=(0))
+   
             
-# 30*1025*4000*3*1025*(45/30)*((20)**2) /  (16*(1+(45/30))*25)  / 10**6
+#30*1025*4000*3*0.85*(45/30)*((20)**2) /  (16*(1+(45/30))*(25+273))  / 10**6
 
 
-#Plotar diferenca de temperatura
+#Plotar diferenca de temperatura media
 dT = theta-theta1000m
+dTmean = np.nanmean(dT,axis=(0)) 
 cmap = cmocean.cm.speed
-plt.contourf(lon, lat ,dT[0,0,:,:],np.arange(0,32,1),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
+plt.contourf(lon, lat ,dTmean[0],np.arange(0,32,1),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
 cbar = plt.colorbar()  #pad=0.1
-cbar.set_label(r'Densidade de potência do vento a 100 m (W $\rmm^{-2}$)',size=20)
+cbar.set_label(r'Diferenca de temperatura (K)',size=20)
 # print(pdmean_f[30,39],"Buzios")
 # print(pdmean_f[20,48],"Albacore")
 
 
+# #Plotar power gross mean
+# cmap = cmocean.cm.speed
+# plt.contourf(lon, lat ,Pgmean[0],np.arange(0,26,1),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
+# cbar = plt.colorbar()  #pad=0.1
+# cbar.set_label(r'Power gross mean (mW)',size=20)
+# # print(pdmean_f[30,39],"Buzios")
+# # print(pdmean_f[20,48],"Albacore")
 
 
 
