@@ -156,9 +156,10 @@ Pgmean = np.nanmean(Pg,axis=(0))
 dT = theta-theta1000m
 dTmean = np.nanmean(dT,axis=(0))
 cmap = cmocean.cm.thermal
-plt.contourf(lon, lat ,dTmean[0],np.arange(0,32,1),transform = ccrs.PlateCarree(),color='k',cmap=cmap)
+plt.contourf(lon, lat ,dTmean[0],np.arange(0,32,1),transform = ccrs.PlateCarree(),colors="none",levels=[20,50],hatches=['.'],zorder=1)
+plt.contourf(lon, lat ,dTmean[0],np.arange(0,32,1),transform = ccrs.PlateCarree(),color='k',cmap=cmap,zorder=0)
 cbar = plt.colorbar(orientation="horizontal")  #pad=0.1
-cbar.set_label(r'Diferenca de temperatura (K)',size=20)
+cbar.set_label(r'Diferença de temperaura ($\rm^{o}C$)',size=20)
 ## print(pdmean_f[30,39],"Buzios")
 ## print(pdmean_f[20,48],"Albacore")
 
