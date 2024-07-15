@@ -70,7 +70,7 @@ mask_se = ds2.T
 
 filepattern = 'campos20'
 
-arqs = [f for f in os.listdir(filelocation) if f.startswith(filepattern)]
+arqs = [f for f in sorted(os.listdir(filelocation)) if f.startswith(filepattern)]
 ds = xr.open_dataset(os.path.join(filelocation,arqs[0]))
 ds
 
@@ -96,7 +96,7 @@ arqs = [f for f in sorted(os.listdir(filelocation)) if f.startswith(filepattern)
 count = 0
 for arq in arqs:
     ds = xr.open_dataset(os.path.join(filelocation,arq))
-    ds2 = met.calc.wind_speed(ds.u100, ds.v100).resample(time = '1D').mean(dim = 'time')*mask_ne
+    ds2 = (met.calc.wind_speed(ds.u100, ds.v100)*(np.log(150/ds.fsr)/np.log(100/ds.fsr))).resample(time = '1D').mean(dim = 'time')*mask_ne
     ds_temp = ds2.mean(dim = ('latitude', 'longitude'))
     if count == 0:
         vento100_ne = ds_temp
@@ -112,12 +112,12 @@ vento100_ne
 
 filepattern = 'santos20'
 
-arqs = [f for f in os.listdir(filelocation) if f.startswith(filepattern)]
+arqs = [f for f in sorted(os.listdir(filelocation)) if f.startswith(filepattern)]
 
 count = 0
 for arq in arqs:
     ds = xr.open_dataset(os.path.join(filelocation,arq))
-    ds2 = met.calc.wind_speed(ds.u100, ds.v100).resample(time = '1D').mean(dim = 'time')*mask_se
+    ds2 = (met.calc.wind_speed(ds.u100, ds.v100)*(np.log(150/ds.fsr)/np.log(100/ds.fsr))).resample(time = '1D').mean(dim = 'time')*mask_se
     ds_temp = ds2.mean(dim = ('latitude', 'longitude'))
     if count == 0:
         vento100_se = ds_temp
@@ -131,12 +131,12 @@ vento100_se
 
 filepattern = 'campos20'
 
-arqs = [f for f in os.listdir(filelocation) if f.startswith(filepattern)]
+arqs = [f for f in sorted(os.listdir(filelocation)) if f.startswith(filepattern)]
 
 count = 0
 for arq in arqs:
     ds = xr.open_dataset(os.path.join(filelocation,arq))
-    ds2 = met.calc.wind_speed(ds.u100, ds.v100).resample(time = '1D').mean(dim = 'time')*mask_s
+    ds2 = (met.calc.wind_speed(ds.u100, ds.v100)*(np.log(150/ds.fsr)/np.log(100/ds.fsr))).resample(time = '1D').mean(dim = 'time')*mask_s
     ds_temp = ds2.mean(dim = ('latitude', 'longitude'))
     if count == 0:
         vento100_s = ds_temp
@@ -409,7 +409,7 @@ intervalos = ['2014-2018', '2019-2023']
 
 fig, ax = plt.subplots()
 
-vento_clim = vento100.loc['2014':'2019']
+vento_clim = vento100.loc['2014':'2019'][:-3]
 # mean
 mean = vento_clim.mean()
 # variance
@@ -459,7 +459,7 @@ intervalos = ['2014-2015', '2016-2017','2018-2019', '2020-2021','2022-2023']
 
 fig, ax = plt.subplots()
 
-vento_clim = vento100.loc['2014':'2016']
+vento_clim = vento100.loc['2014':'2016'][:-3]
 # mean
 mean = vento_clim.mean()
 # variance
@@ -471,7 +471,7 @@ bins = np.arange(0, vento_clim.max(), .5)
 _ = ax.plot(x_r100, stats.norm.pdf(x_r100, mean, std), lw=2, color = 'k')
 bins_pad = bins
 
-vento_clim = vento100.loc['2016':'2018']
+vento_clim = vento100.loc['2016':'2018'][:-3]
 # mean
 mean = vento_clim.mean()
 print(mean,'mean')
@@ -484,7 +484,7 @@ bins = np.arange(0, vento_clim.max(), .5)
 _ = ax.plot(x_r100, stats.norm.pdf(x_r100, mean, std), lw=2)
 
 
-vento_clim = vento100.loc['2018':'2020']
+vento_clim = vento100.loc['2018':'2020'][:-3]
 # mean
 mean = vento_clim.mean()
 # variance
@@ -496,7 +496,7 @@ bins = np.arange(0, vento_clim.max(), .5)
 _ = ax.plot(x_r100, stats.norm.pdf(x_r100, mean, std), lw=2)
 
 
-vento_clim = vento100.loc['2020':'2022']
+vento_clim = vento100.loc['2020':'2022'][:-3]
 # mean
 mean = vento_clim.mean()
 # variance
@@ -813,7 +813,7 @@ _ = ax.plot(x_r100, stats.norm.pdf(x_r100, mean, std), lw=2, color = 'k')
 bins_pad = bins
 
 
-vento_clim = vento100.loc['2015']
+vento_clim = vento100.loc['2023']
 # mean
 mean = vento_clim.mean()
 # variance
