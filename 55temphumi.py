@@ -1,3 +1,18 @@
+#Realiza as importações e define os diretórios dos dados e das figuras
+
+import geopandas as gpd
+import rioxarray as rio
+from shapely.geometry import mapping
+
+def shape_clip_dataarray(dataarray, shapefile_path, projection = 'epsg:4326', x_dim = 'longitude', y_dim ='latitude', invert= False, all_touched=True):
+    """Clip a DataArray using a shapefile."""
+    shapefile = gpd.read_file(shapefile_path)
+    dataarray = dataarray.rio.write_crs(projection)
+    dataarray = dataarray.rio.set_spatial_dims(x_dim, y_dim)
+    return dataarray.rio.clip(shapefile.geometry.apply(mapping), shapefile.crs, drop = True, invert = invert, all_touched = all_touched)
+
+
+import xarray as xr
 import sys,warnings,os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,9 +35,81 @@ from cartopy.io.shapereader import Reader
 from cartopy.feature import ShapelyFeature
 
 figsdir = "/home/numa23/Public/aesop/figures/"
+filelocation = '/home/numa23/Public/aesop/br7/'
+shapefile_br="/home/numa23/Public/Projeto_BR_OTEC/copernicus/shapefile_brasil"
 
+#Cria máscaras para cada área
+
+########### Brasil ###########
+
+filepattern = 'precip_'
+
+arqs = [f for f in sorted(os.listdir(filelocation)) if f.startswith(filepattern)]
+ds = xr.open_dataset(os.path.join(filelocation,arqs[0]))
+
+teste = np.ones([173,177])
+data_xr = xr.DataArray(teste,
+coords={'longitude': ds.longitude,'latitude': ds.latitude},
+dims=["longitude", "latitude"])
+ds2 = shape_clip_dataarray(data_xr, shapefile_br, invert = True, all_touched = False)
+
+mask_ne = ds2.T
+
+for k in range(0,mask_ne.shape[0]):
+    for y in range(0,mask_ne.shape[1]):
+        if mask_ne[k,y] == 1.0:
+            mask_ne[k,y] = np.nan
+        else:
+            mask_ne[k,y] = 1.0
+
+import numpy as np
 
 def classify_distribution(values):
+    """
+    Classifies each value in the input array into:
+    - '0' for nan values
+    - 'Bottom 1/5'
+    - 'Lower Middle 1/5'
+    - 'Middle 1/5'
+    - 'Upper Middle 1/5'
+    - 'Top 1/5'
+    based on their position relative to the range between the minimum and maximum values.
+    Works for arrays of any dimension and with any values (positive, negative, or mixed).
+    """
+    # Flatten the array to handle any dimension
+    flattened_values = values.flatten()
+    
+    # Create an output array filled with '0' (will be overwritten for non-nan values)
+    classification = np.full_like(flattened_values, '0', dtype='U1')
+    
+    # Find non-nan values
+    non_nan_mask = ~np.isnan(flattened_values)
+    non_nan_values = flattened_values[non_nan_mask]
+    
+    if len(non_nan_values) > 0:
+        # Find the minimum and maximum values (ignoring nan)
+        min_value = np.min(non_nan_values)
+        max_value = np.max(non_nan_values)
+        
+        # Calculate the range and thresholds
+        range_values = max_value - min_value
+        threshold1 = min_value + (range_values / 5)  # 1/5 of the range
+        threshold2 = min_value + (2 * range_values / 5)  # 2/5 of the range
+        threshold3 = min_value + (3 * range_values / 5)  # 3/5 of the range
+        threshold4 = min_value + (4 * range_values / 5)  # 4/5 of the range
+        
+        # Classify non-nan values
+        classification[non_nan_mask] = np.where(non_nan_values < threshold1, '1',
+                                              np.where(non_nan_values < threshold2, '2',
+                                                      np.where(non_nan_values < threshold3, '3',
+                                                              np.where(non_nan_values < threshold4, '4', '5'))))
+    
+    # Reshape the classification result to match the original input shape
+    return classification.reshape(values.shape)
+
+
+
+def classify_distribution_main_old(values):
     """
     Classifies each value in the input array into:
     - 'Bottom 1/5'
@@ -37,8 +124,8 @@ def classify_distribution(values):
     flattened_values = values.flatten()
     
     # Find the minimum and maximum values
-    min_value = np.min(flattened_values)
-    max_value = np.max(flattened_values)
+    min_value = np.nanmin(flattened_values)
+    max_value = np.nanmax(flattened_values)
     
     # Calculate the range and thresholds
     range_values = max_value - min_value
@@ -108,8 +195,8 @@ def classify_distribution3(values,values2):
     flattened_values2 = values2.flatten()
     
     # Find the minimum and maximum values
-    min_value = np.min(flattened_values2)
-    max_value = np.max(flattened_values2)
+    min_value = np.nanmin(flattened_values2)
+    max_value = np.nanmax(flattened_values2)
     
     # Calculate the range and thresholds
     range_values = max_value - min_value
@@ -169,6 +256,7 @@ for k in range(2016,2024):
 
 arr1w = arr1w - 273.15
 temp = np.nanmean(arr1w,axis=(0))
+temp = temp*mask_ne
 
 classification_result_temp = classify_distribution(temp)
 print(arr1w.shape)
@@ -225,10 +313,10 @@ for k in range(0,len(arr1w)):
         else:
             primaveratemp.append(arr1w[k])
 
-veraotemp = np.array(veraotemp)
-outonotemp = np.array(outonotemp)
-invernotemp = np.array(invernotemp)
-primaveratemp = np.array(primaveratemp)
+veraotemp = np.ma.masked_values(veraotemp,-99789)
+outonotemp = np.ma.masked_values(outonotemp,-99789)
+invernotemp = np.ma.masked_values(invernotemp,-99789)
+primaveratemp = np.ma.masked_values(primaveratemp,-99789)
 
 
 counter = 0
@@ -282,10 +370,13 @@ lat=vars['latitude'][:]
 print(arr1w.shape)
 
 humi = np.nanmean(arr1w,axis=(0))*365*24*1000 #365 days, 24 hrs and 1000 milimiters per meter
+humi = humi*mask_ne
 
 classification_result_humi = classify_distribution(humi)
-
+print(classification_result_humi)
 temphumi = np.char.add(classification_result_temp, classification_result_humi)
+
+print(temphumi.shape,"gergegergerg")
 
 veraohumi = []
 outonohumi = []
@@ -329,10 +420,10 @@ for k in range(0,len(arr1w)):
         else:
             primaverahumi.append(arr1w[k])
 
-veraohumi = np.array(veraohumi)
-outonohumi = np.array(outonohumi)
-invernohumi = np.array(invernohumi)
-primaverahumi = np.array(primaverahumi)
+veraohumi = np.ma.masked_values(veraohumi,-99789)
+outonohumi = np.ma.masked_values(outonohumi,-99789)
+invernohumi = np.ma.masked_values(invernohumi,-99789)
+primaverahumi = np.ma.masked_values(primaverahumi,-99789)
 
 
 # Define the 5x5 grid for temperature and precipitation
@@ -364,12 +455,12 @@ blue = precipitation  # Blue (precipitation)
 rgb_image = np.stack([red, green, blue], axis=-1)
 
 # Create the plot
-min_valuetemp = np.min(temp)
-max_valuetemp = np.max(temp)
+min_valuetemp = np.nanmin(temp)
+max_valuetemp = np.nanmax(temp)
 range_valuestemp = max_valuetemp - min_valuetemp
 
-min_valuehumi = np.min(humi)
-max_valuehumi = np.max(humi)
+min_valuehumi = np.nanmin(humi)
+max_valuehumi = np.nanmax(humi)
 range_valueshumi = max_valuehumi - min_valuehumi
 
 fig = plt.figure()
@@ -489,6 +580,10 @@ for k in range(0,len(temphumi)):
             colors_blend[k,t,0] = rgb_image[0,4,0]
             colors_blend[k,t,1] = rgb_image[0,4,1]
             colors_blend[k,t,2] = rgb_image[0,4,2]
+        if temphumi[k,t] == '00':
+            colors_blend[k,t,0] = 255
+            colors_blend[k,t,1] = 255
+            colors_blend[k,t,2] = 255
 
 
 
@@ -515,30 +610,30 @@ ax.coastlines()
 #ax.set_title('Sea Level Pressure and surface flow at 2005-10-28 18Z')
 # ax.set_extent([-51, -45, 6, 2], crs=ccrs.PlateCarree())  #Foz do amazonas
 # ax.set_extent([-39, -31, -6, -1], crs=ccrs.PlateCarree()) #Bacia de potiguar
-ax.set_extent([-55, -35, 9, -30], crs=ccrs.PlateCarree())  #Bacia de campos
+ax.set_extent([-75, -32, 9, -35], crs=ccrs.PlateCarree())
 ax.coastlines()
 #ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
 #ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
-lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
+#lontick = np.arange(-75,-32,1) # define longitude ticks  #Bacia de Campos
+#lattick = np.arange(-35,9,1) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
 # lontick = np.arange(-39,-31,1) # define longitude ticks    #Bacia de potiguar
 # lattick = np.arange(-6,-1,1) # define latitude ticks    #Bacia de potiguar
-grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
-grl.xlabels_top = False
-grl.ylabels_right = False
-grl.xlocator = mticker.FixedLocator(lontick)
-grl.ylocator = mticker.FixedLocator(lattick)
+#grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
+#grl.xlabels_top = False
+#grl.ylabels_right = False
+#grl.xlocator = mticker.FixedLocator(lontick)
+#grl.ylocator = mticker.FixedLocator(lattick)
 
-grl.xformatter = LONGITUDE_FORMATTER
-grl.yformatter = LATITUDE_FORMATTER
+#grl.xformatter = LONGITUDE_FORMATTER
+#grl.yformatter = LATITUDE_FORMATTER
 
 # Plot the bivariate data
-im = ax.imshow(colors_blend[::-1,:], extent=(-55, -35, -30, 9), transform=ccrs.PlateCarree(), origin='lower')
+im = ax.imshow(colors_blend[::-1,:], extent=(-75, -32, -35, 9), transform=ccrs.PlateCarree(), origin='lower')
 plt.subplots_adjust(bottom=0.05, top=0.96, hspace=0.4,right=0.99,left=0.01)
 nameoffigure = "plot_fig_brasil55"
 string_in_string = "{}".format(nameoffigure)
@@ -555,27 +650,27 @@ ax.coastlines()
 #ax.set_title('Sea Level Pressure and surface flow at 2005-10-28 18Z')
 # ax.set_extent([-51, -45, 6, 2], crs=ccrs.PlateCarree())  #Foz do amazonas
 # ax.set_extent([-39, -31, -6, -1], crs=ccrs.PlateCarree()) #Bacia de potiguar
-ax.set_extent([-55, -35, 9, -30], crs=ccrs.PlateCarree())  #Bacia de campos
+ax.set_extent([-75, -32, 9, -35], crs=ccrs.PlateCarree())  #Bacia de campos
 ax.coastlines()
 #ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
 #ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
-lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
+#lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
+#lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
 # lontick = np.arange(-39,-31,1) # define longitude ticks    #Bacia de potiguar
 # lattick = np.arange(-6,-1,1) # define latitude ticks    #Bacia de potiguar
-grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
-grl.xlabels_top = False
-grl.ylabels_right = False
-grl.xlocator = mticker.FixedLocator(lontick)
-grl.ylocator = mticker.FixedLocator(lattick)
+#grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
+#grl.xlabels_top = False
+#grl.ylabels_right = False
+#grl.xlocator = mticker.FixedLocator(lontick)
+#grl.ylocator = mticker.FixedLocator(lattick)
 
-grl.xformatter = LONGITUDE_FORMATTER
-grl.yformatter = LATITUDE_FORMATTER
+#grl.xformatter = LONGITUDE_FORMATTER
+#grl.yformatter = LATITUDE_FORMATTER
 
 # Plot the bivariate data
 cmap = cmocean.cm.speed
@@ -597,27 +692,27 @@ ax.coastlines()
 #ax.set_title('Sea Level Pressure and surface flow at 2005-10-28 18Z')
 # ax.set_extent([-51, -45, 6, 2], crs=ccrs.PlateCarree())  #Foz do amazonas
 # ax.set_extent([-39, -31, -6, -1], crs=ccrs.PlateCarree()) #Bacia de potiguar
-ax.set_extent([-55, -35, 9, -30], crs=ccrs.PlateCarree())  #Bacia de campos
+ax.set_extent([-75, -32, 9, -35], crs=ccrs.PlateCarree())  #Bacia de campos
 ax.coastlines()
 #ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
 #ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
-lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
+#lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
+#lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
 # lontick = np.arange(-39,-31,1) # define longitude ticks    #Bacia de potiguar
 # lattick = np.arange(-6,-1,1) # define latitude ticks    #Bacia de potiguar
-grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
-grl.xlabels_top = False
-grl.ylabels_right = False
-grl.xlocator = mticker.FixedLocator(lontick)
-grl.ylocator = mticker.FixedLocator(lattick)
+#grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
+#grl.xlabels_top = False
+#grl.ylabels_right = False
+#grl.xlocator = mticker.FixedLocator(lontick)
+#grl.ylocator = mticker.FixedLocator(lattick)
 
-grl.xformatter = LONGITUDE_FORMATTER
-grl.yformatter = LATITUDE_FORMATTER
+#grl.xformatter = LONGITUDE_FORMATTER
+#grl.yformatter = LATITUDE_FORMATTER
 
 # Plot the bivariate data
 plt.contourf(lon, lat ,temp,transform = ccrs.PlateCarree(),color='k',cmap='CMRmap')
@@ -631,9 +726,15 @@ plt.savefig(figsdir+string_in_string,dpi=100)
 
 veraotemp = np.nanmean(veraotemp,axis=(0))
 
+veraotemp = veraotemp*mask_ne
+
+print("humihumihumi",type(humi),type(veraotemp))
+
 classification_result_veraotemp = classify_distribution(veraotemp)
 
 veraohumi = np.nanmean(veraohumi,axis=(0))*89*24*1000
+
+veraohumi = veraohumi*mask_ne
 
 classification_result_veraohumi = classify_distribution(veraohumi)
 
@@ -642,9 +743,13 @@ veraotemphumi = np.char.add(classification_result_veraotemp, classification_resu
 
 outonotemp = np.nanmean(outonotemp,axis=(0))
 
+outonotemp = outonotemp*mask_ne
+
 classification_result_outonotemp = classify_distribution(outonotemp)
 
 outonohumi = np.nanmean(outonohumi,axis=(0))*92*24*1000
+
+outonohumi = outonohumi*mask_ne
 
 classification_result_outonohumi = classify_distribution(outonohumi)
 
@@ -653,9 +758,13 @@ outonotemphumi = np.char.add(classification_result_outonotemp, classification_re
 
 invernotemp = np.nanmean(invernotemp,axis=(0))
 
+invernotemp = invernotemp*mask_ne
+
 classification_result_invernotemp = classify_distribution(invernotemp)
 
 invernohumi = np.nanmean(invernohumi,axis=(0))*93*24*1000
+
+invernohumi = invernohumi*mask_ne
 
 classification_result_invernohumi = classify_distribution(invernohumi)
 
@@ -664,9 +773,13 @@ invernotemphumi = np.char.add(classification_result_invernotemp, classification_
 
 primaveratemp = np.nanmean(primaveratemp,axis=(0))
 
+primaveratemp = primaveratemp*mask_ne
+
 classification_result_primaveratemp = classify_distribution(primaveratemp)
 
 primaverahumi = np.nanmean(primaverahumi,axis=(0))*89*24*1000
+
+primaverahumi = primaverahumi*mask_ne
 
 classification_result_primaverahumi = classify_distribution(primaverahumi)
 
@@ -676,12 +789,12 @@ primaveratemphumi = np.char.add(classification_result_primaveratemp, classificat
 #Parte do verao
 
 # Create the plot
-min_valuetemp = np.min(veraotemp)
-max_valuetemp = np.max(veraotemp)
+min_valuetemp = np.nanmin(veraotemp)
+max_valuetemp = np.nanmax(veraotemp)
 range_valuestemp = max_valuetemp - min_valuetemp
 
-min_valuehumi = np.min(veraohumi)
-max_valuehumi = np.max(veraohumi)
+min_valuehumi = np.nanmin(veraohumi)
+max_valuehumi = np.nanmax(veraohumi)
 range_valueshumi = max_valuehumi - min_valuehumi
 
 fig = plt.figure()
@@ -802,6 +915,11 @@ for k in range(0,len(veraotemphumi)):
             colors_blend[k,t,0] = rgb_image[0,4,0]
             colors_blend[k,t,1] = rgb_image[0,4,1]
             colors_blend[k,t,2] = rgb_image[0,4,2]
+        if veraotemphumi[k,t] == '00':
+            colors_blend[k,t,0] = 255
+            colors_blend[k,t,1] = 255
+            colors_blend[k,t,2] = 255
+
 
 
 
@@ -814,30 +932,30 @@ ax.coastlines()
 #ax.set_title('Sea Level Pressure and surface flow at 2005-10-28 18Z')
 # ax.set_extent([-51, -45, 6, 2], crs=ccrs.PlateCarree())  #Foz do amazonas
 # ax.set_extent([-39, -31, -6, -1], crs=ccrs.PlateCarree()) #Bacia de potiguar
-ax.set_extent([-55, -35, 9, -30], crs=ccrs.PlateCarree())  #Bacia de campos
+ax.set_extent([-75, -32, 9, -35], crs=ccrs.PlateCarree())  #Bacia de campos
 ax.coastlines()
 #ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
 #ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
-lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
+#lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
+#lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
 # lontick = np.arange(-39,-31,1) # define longitude ticks    #Bacia de potiguar
 # lattick = np.arange(-6,-1,1) # define latitude ticks    #Bacia de potiguar
-grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
-grl.xlabels_top = False
-grl.ylabels_right = False
-grl.xlocator = mticker.FixedLocator(lontick)
-grl.ylocator = mticker.FixedLocator(lattick)
+#grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
+#grl.xlabels_top = False
+#grl.ylabels_right = False
+#grl.xlocator = mticker.FixedLocator(lontick)
+#grl.ylocator = mticker.FixedLocator(lattick)
 
-grl.xformatter = LONGITUDE_FORMATTER
-grl.yformatter = LATITUDE_FORMATTER
+#grl.xformatter = LONGITUDE_FORMATTER
+#grl.yformatter = LATITUDE_FORMATTER
 
 # Plot the bivariate data
-im = ax.imshow(colors_blend[::-1,:], extent=(-55, -35, -30, 9), transform=ccrs.PlateCarree(), origin='lower')
+im = ax.imshow(colors_blend[::-1,:], extent=(-75, -32, -35, 9), transform=ccrs.PlateCarree(), origin='lower')
 plt.subplots_adjust(bottom=0.05, top=0.96, hspace=0.4,right=0.99,left=0.01)
 nameoffigure = "plot_fig_brasil_verao55"
 string_in_string = "{}".format(nameoffigure)
@@ -848,12 +966,12 @@ plt.savefig(figsdir+string_in_string,dpi=100)
 #Parte do outono
 
 # Create the plot
-min_valuetemp = np.min(outonotemp)
-max_valuetemp = np.max(outonotemp)
+min_valuetemp = np.nanmin(outonotemp)
+max_valuetemp = np.nanmax(outonotemp)
 range_valuestemp = max_valuetemp - min_valuetemp
 
-min_valuehumi = np.min(outonohumi)
-max_valuehumi = np.max(outonohumi)
+min_valuehumi = np.nanmin(outonohumi)
+max_valuehumi = np.nanmax(outonohumi)
 range_valueshumi = max_valuehumi - min_valuehumi
 
 fig = plt.figure()
@@ -973,7 +1091,10 @@ for k in range(0,len(outonotemphumi)):
             colors_blend[k,t,0] = rgb_image[0,4,0]
             colors_blend[k,t,1] = rgb_image[0,4,1]
             colors_blend[k,t,2] = rgb_image[0,4,2]
-
+        if outonotemphumi[k,t] == '00':
+            colors_blend[k,t,0] = 255
+            colors_blend[k,t,1] = 255
+            colors_blend[k,t,2] = 255
 
 
 # Create a figure and axis with a Plate Carree projection
@@ -985,30 +1106,30 @@ ax.coastlines()
 #ax.set_title('Sea Level Pressure and surface flow at 2005-10-28 18Z')
 # ax.set_extent([-51, -45, 6, 2], crs=ccrs.PlateCarree())  #Foz do amazonas
 # ax.set_extent([-39, -31, -6, -1], crs=ccrs.PlateCarree()) #Bacia de potiguar
-ax.set_extent([-55, -35, 9, -30], crs=ccrs.PlateCarree())  #Bacia de campos
+ax.set_extent([-75, -32, 9, -35], crs=ccrs.PlateCarree())  #Bacia de campos
 ax.coastlines()
 #ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
 #ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
-lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
+#lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
+#lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
 # lontick = np.arange(-39,-31,1) # define longitude ticks    #Bacia de potiguar
 # lattick = np.arange(-6,-1,1) # define latitude ticks    #Bacia de potiguar
-grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
-grl.xlabels_top = False
-grl.ylabels_right = False
-grl.xlocator = mticker.FixedLocator(lontick)
-grl.ylocator = mticker.FixedLocator(lattick)
+#grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
+#grl.xlabels_top = False
+#grl.ylabels_right = False
+#grl.xlocator = mticker.FixedLocator(lontick)
+#grl.ylocator = mticker.FixedLocator(lattick)
 
-grl.xformatter = LONGITUDE_FORMATTER
-grl.yformatter = LATITUDE_FORMATTER
+#grl.xformatter = LONGITUDE_FORMATTER
+#grl.yformatter = LATITUDE_FORMATTER
 
 # Plot the bivariate data
-im = ax.imshow(colors_blend[::-1,:], extent=(-55, -35, -30, 9), transform=ccrs.PlateCarree(), origin='lower')
+im = ax.imshow(colors_blend[::-1,:], extent=(-75, -32, -35, 9), transform=ccrs.PlateCarree(), origin='lower')
 plt.subplots_adjust(bottom=0.05, top=0.96, hspace=0.4,right=0.99,left=0.01)
 nameoffigure = "plot_fig_brasil_outono55"
 string_in_string = "{}".format(nameoffigure)
@@ -1018,12 +1139,12 @@ plt.savefig(figsdir+string_in_string,dpi=100)
 #Parte do inverno
 
 # Create the plot
-min_valuetemp = np.min(invernotemp)
-max_valuetemp = np.max(invernotemp)
+min_valuetemp = np.nanmin(invernotemp)
+max_valuetemp = np.nanmax(invernotemp)
 range_valuestemp = max_valuetemp - min_valuetemp
 
-min_valuehumi = np.min(invernohumi)
-max_valuehumi = np.max(invernohumi)
+min_valuehumi = np.nanmin(invernohumi)
+max_valuehumi = np.nanmax(invernohumi)
 range_valueshumi = max_valuehumi - min_valuehumi
 
 fig = plt.figure()
@@ -1143,7 +1264,10 @@ for k in range(0,len(invernotemphumi)):
             colors_blend[k,t,0] = rgb_image[0,4,0]
             colors_blend[k,t,1] = rgb_image[0,4,1]
             colors_blend[k,t,2] = rgb_image[0,4,2]
-
+        if invernotemphumi[k,t] == '00':
+            colors_blend[k,t,0] = 255
+            colors_blend[k,t,1] = 255
+            colors_blend[k,t,2] = 255  
 
 
 # Create a figure and axis with a Plate Carree projection
@@ -1155,30 +1279,30 @@ ax.coastlines()
 #ax.set_title('Sea Level Pressure and surface flow at 2005-10-28 18Z')
 # ax.set_extent([-51, -45, 6, 2], crs=ccrs.PlateCarree())  #Foz do amazonas
 # ax.set_extent([-39, -31, -6, -1], crs=ccrs.PlateCarree()) #Bacia de potiguar
-ax.set_extent([-55, -35, 9, -30], crs=ccrs.PlateCarree())  #Bacia de campos
+ax.set_extent([-75, -32, 9, -35], crs=ccrs.PlateCarree())  #Bacia de campos
 ax.coastlines()
 #ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
 #ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
-lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
+#lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
+#lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
 # lontick = np.arange(-39,-31,1) # define longitude ticks    #Bacia de potiguar
 # lattick = np.arange(-6,-1,1) # define latitude ticks    #Bacia de potiguar
-grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
-grl.xlabels_top = False
-grl.ylabels_right = False
-grl.xlocator = mticker.FixedLocator(lontick)
-grl.ylocator = mticker.FixedLocator(lattick)
+#grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
+#grl.xlabels_top = False
+#grl.ylabels_right = False
+#grl.xlocator = mticker.FixedLocator(lontick)
+#grl.ylocator = mticker.FixedLocator(lattick)
 
-grl.xformatter = LONGITUDE_FORMATTER
-grl.yformatter = LATITUDE_FORMATTER
+#grl.xformatter = LONGITUDE_FORMATTER
+#grl.yformatter = LATITUDE_FORMATTER
 
 # Plot the bivariate data
-im = ax.imshow(colors_blend[::-1,:], extent=(-55, -35, -30, 9), transform=ccrs.PlateCarree(), origin='lower')
+im = ax.imshow(colors_blend[::-1,:], extent=(-75, -32, -35, 9), transform=ccrs.PlateCarree(), origin='lower')
 plt.subplots_adjust(bottom=0.05, top=0.96, hspace=0.4,right=0.99,left=0.01)
 nameoffigure = "plot_fig_brasil_inverno55"
 string_in_string = "{}".format(nameoffigure)
@@ -1189,12 +1313,12 @@ plt.savefig(figsdir+string_in_string,dpi=100)
 #Parte da primavera
 
 # Create the plot
-min_valuetemp = np.min(primaveratemp)
-max_valuetemp = np.max(primaveratemp)
+min_valuetemp = np.nanmin(primaveratemp)
+max_valuetemp = np.nanmax(primaveratemp)
 range_valuestemp = max_valuetemp - min_valuetemp
 
-min_valuehumi = np.min(primaverahumi)
-max_valuehumi = np.max(primaverahumi)
+min_valuehumi = np.nanmin(primaverahumi)
+max_valuehumi = np.nanmax(primaverahumi)
 range_valueshumi = max_valuehumi - min_valuehumi
 
 fig = plt.figure()
@@ -1314,7 +1438,10 @@ for k in range(0,len(primaveratemphumi)):
             colors_blend[k,t,0] = rgb_image[0,4,0]
             colors_blend[k,t,1] = rgb_image[0,4,1]
             colors_blend[k,t,2] = rgb_image[0,4,2]
-
+        if primaveratemphumi[k,t] == '00':
+            colors_blend[k,t,0] = 255
+            colors_blend[k,t,1] = 255
+            colors_blend[k,t,2] = 255
 
 
 # Create a figure and axis with a Plate Carree projection
@@ -1326,30 +1453,30 @@ ax.coastlines()
 #ax.set_title('Sea Level Pressure and surface flow at 2005-10-28 18Z')
 # ax.set_extent([-51, -45, 6, 2], crs=ccrs.PlateCarree())  #Foz do amazonas
 # ax.set_extent([-39, -31, -6, -1], crs=ccrs.PlateCarree()) #Bacia de potiguar
-ax.set_extent([-55, -35, 9, -30], crs=ccrs.PlateCarree())  #Bacia de campos
+ax.set_extent([-75, -32, 9, -35], crs=ccrs.PlateCarree())  #Bacia de campos
 ax.coastlines()
 #ax.add_feature(cart.feature.LAND, zorder=100, edgecolor='k',facecolor="white")
 #ax.add_feature(cart.feature.STATES, zorder=100, edgecolor='k')
 
 
 # # add grid ticks
-lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
-lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
+#lontick = np.arange(-55,-35,1) # define longitude ticks  #Bacia de Campos
+#lattick = np.arange(-30,9,1) # define latitude ticks  #Bacia de Campos
 # lontick = np.arange(-51,-45,0.5) # define longitude ticks  #Foz do amazonas
 # lattick = np.arange(2,7,0.5) # define latitude ticks  #Foz do amazonas
 # lontick = np.arange(-39,-31,1) # define longitude ticks    #Bacia de potiguar
 # lattick = np.arange(-6,-1,1) # define latitude ticks    #Bacia de potiguar
-grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
-grl.xlabels_top = False
-grl.ylabels_right = False
-grl.xlocator = mticker.FixedLocator(lontick)
-grl.ylocator = mticker.FixedLocator(lattick)
+#grl=ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,color='k',alpha=0.7,linewidth=1.2)
+#grl.xlabels_top = False
+#grl.ylabels_right = False
+#grl.xlocator = mticker.FixedLocator(lontick)
+#grl.ylocator = mticker.FixedLocator(lattick)
 
-grl.xformatter = LONGITUDE_FORMATTER
-grl.yformatter = LATITUDE_FORMATTER
+#grl.xformatter = LONGITUDE_FORMATTER
+#grl.yformatter = LATITUDE_FORMATTER
 
 # Plot the bivariate data
-im = ax.imshow(colors_blend[::-1,:], extent=(-55, -35, -30, 9), transform=ccrs.PlateCarree(), origin='lower')
+im = ax.imshow(colors_blend[::-1,:], extent=(-75, -32, -35, 9), transform=ccrs.PlateCarree(), origin='lower')
 plt.subplots_adjust(bottom=0.05, top=0.96, hspace=0.4,right=0.99,left=0.01)
 nameoffigure = "plot_fig_brasil_primavera55"
 string_in_string = "{}".format(nameoffigure)
