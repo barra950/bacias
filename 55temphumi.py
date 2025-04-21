@@ -429,20 +429,52 @@ primaverahumi = np.ma.masked_values(primaverahumi,-99789)
 # Define the 5x5 grid for temperature and precipitation
 # Inverted logic: High values become low, and low values become high
 temperature = np.array([
-    [0.8, 0.7, 0.6, 0.5, 0.2],  # High, Medium-High, Medium, Medium-Low, Low temperature (rows)
-    [0.8, 0.7, 0.6, 0.5, 0.2],
-    [0.8, 0.7, 0.6, 0.5, 0.2],
-    [0.8, 0.7, 0.6, 0.5, 0.2],
-    [0.8, 0.7, 0.6, 0.5, 0.2]
+    [0.8, 0.6, 0.4, 0.2, 0.0],  # High, Medium-High, Medium, Medium-Low, Low temperature (rows)
+    [0.8, 0.6, 0.4, 0.2, 0.0],
+    [0.8, 0.6, 0.4, 0.2, 0.0],
+    [0.8, 0.6, 0.4, 0.2, 0.0],
+    [0.8, 0.6, 0.4, 0.2, 0.0]
+])
+
+precipitation = np.array([
+    [0.0, 0.0, 0.0, 0.0, 0.0],  # Low precipitation (columns)
+    [0.2, 0.2, 0.2, 0.2, 0.2],  # Medium-Low precipitation
+    [0.4, 0.4, 0.4, 0.4, 0.4],  # Medium precipitation
+    [0.6, 0.6, 0.6, 0.6, 0.6],  # Medium-High precipitation
+    [0.8, 0.8, 0.8, 0.8, 0.8]   # High precipitation
+])
+
+temperature = np.array([
+    [1.0, 0.8, 0.6, 0.4, 0.2],  # High, Medium-High, Medium, Medium-Low, Low temperature (rows)
+    [1.0, 0.8, 0.6, 0.4, 0.2],
+    [1.0, 0.8, 0.6, 0.4, 0.2],
+    [1.0, 0.8, 0.6, 0.4, 0.2],
+    [1.0, 0.8, 0.6, 0.4, 0.2]
 ])
 
 precipitation = np.array([
     [0.2, 0.2, 0.2, 0.2, 0.2],  # Low precipitation (columns)
     [0.4, 0.4, 0.4, 0.4, 0.4],  # Medium-Low precipitation
     [0.6, 0.6, 0.6, 0.6, 0.6],  # Medium precipitation
-    [0.7, 0.7, 0.7, 0.7, 0.7],  # Medium-High precipitation
-    [0.8, 0.8, 0.8, 0.8, 0.8]   # High precipitation
+    [0.8, 0.8, 0.8, 0.8, 0.8],  # Medium-High precipitation
+    [1.0, 1.0, 1.0, 1.0, 1.0]   # High precipitation
 ])
+
+#temperature = np.array([
+#    [1.0, 0.75, 0.5, 0.25, 0.0],  # High, Medium-High, Medium, Medium-Low, Low temperature (rows)
+#    [1.0, 0.75, 0.5, 0.25, 0.0],
+#    [1.0, 0.75, 0.5, 0.25, 0.0],
+#    [1.0, 0.75, 0.5, 0.25, 0.0],
+#    [1.0, 0.75, 0.5, 0.25, 0.0]
+#])
+
+#precipitation = np.array([
+#    [0.0, 0.0, 0.0, 0.0, 0.0],  # Low precipitation (columns)
+#    [0.25, 0.25, 0.25, 0.25, 0.25],  # Medium-Low precipitation
+#    [0.5, 0.5, 0.5, 0.5, 0.5],  # Medium precipitation
+#    [0.75, 0.75, 0.75, 0.75, 0.75],  # Medium-High precipitation
+#    [1.0, 1.0, 1.0, 1.0, 1.0]   # High precipitation
+#])
 
 # Combine temperature and precipitation into RGB values
 # Temperature is represented by the red channel (orange), precipitation by the blue channel
